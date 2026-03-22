@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCNA Study Tracker — Baltej Giri</title>
+<style>
+:root {
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#232635; --border:#2e3148;
+  --text:#e2e8f0; --muted:#8892a4;
+  --red:#ef4444; --red-bg:#2d1515;
+  --orange:#f97316; --orange-bg:#2d1e0f;
+  --yellow:#eab308; --yellow-bg:#2d2600;
+  --green:#22c55e; --green-bg:#0f2d1a;
+  --blue:#3b82f6; --blue-bg:#0f1e35;
+  --purple:#a855f7;
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:13px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;}
+.topbar-title{font-size:1.1rem;font-weight:700;}
+.topbar-title span{color:var(--blue);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.sync-status{font-size:0.75rem;display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);}
+.sync-dot.synced{background:var(--green);}
+.sync-dot.syncing{background:var(--orange);animation:pulse 1s infinite;}
+.sync-dot.error{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.topbar-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:6px;font-size:0.78rem;cursor:pointer;transition:all .15s;}
+.topbar-btn:hover{border-color:var(--blue);color:var(--blue);}
+.topbar-btn.settings-btn{color:var(--muted);}
+
+/* ── SETUP OVERLAY ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
+.overlay.hidden{display:none;}
+.setup-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px;max-width:520px;width:100%;}
+.setup-box h2{font-size:1.2rem;font-weight:700;margin-bottom:6px;}
+.setup-box p{font-size:0.85rem;color:var(--muted);margin-bottom:20px;line-height:1.6;}
+.setup-step{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px;font-size:0.82rem;line-height:1.6;}
+.setup-step strong{color:var(--blue);}
+.setup-step code{background:var(--bg);border:1px solid var(--border);padding:1px 6px;border-radius:4px;font-family:monospace;font-size:0.8rem;color:var(--yellow);}
+.field-label{font-size:0.78rem;color:var(--muted);margin-bottom:5px;display:block;}
+.token-input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:7px;font-size:0.85rem;font-family:monospace;outline:none;margin-bottom:14px;}
+.token-input:focus{border-color:var(--blue);}
+.save-token-btn{width:100%;background:var(--blue);border:none;color:#fff;padding:11px;border-radius:7px;font-size:0.9rem;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.save-token-btn:hover{opacity:0.9;}
+.setup-skip{display:block;text-align:center;margin-top:10px;font-size:0.78rem;color:var(--muted);cursor:pointer;}
+.setup-skip:hover{color:var(--text);}
+.token-warning{font-size:0.72rem;color:var(--muted);margin-top:6px;line-height:1.5;}
+
+/* ── CONTAINER ── */
+.container{max-width:1300px;margin:0 auto;padding:22px 20px;}
+
+/* ── STATS ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+.stat-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:5px;}
+.stat-value{font-size:1.9rem;font-weight:800;line-height:1;}
+.stat-sub{font-size:0.72rem;color:var(--muted);margin-top:3px;}
+
+/* ── PROGRESS ── */
+.progress-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:24px;}
+.progress-section h2{font-size:0.78rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:10px;}
+.bar-wrap{background:var(--surface2);border-radius:100px;height:13px;overflow:hidden;margin-bottom:7px;}
+.bar-fill{height:100%;border-radius:100px;transition:width .5s;background:linear-gradient(90deg,var(--blue),var(--purple));}
+.bar-labels{display:flex;justify-content:space-between;font-size:0.73rem;color:var(--muted);}
+.seg-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;}
+.seg{display:flex;align-items:center;gap:5px;font-size:0.73rem;color:var(--muted);}
+.seg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+
+/* ── CONTROLS ── */
+.controls{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center;}
+.filter-btn{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:500;transition:all .15s;}
+.filter-btn:hover{border-color:var(--blue);color:var(--text);}
+.filter-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+.search-box{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 13px;border-radius:6px;font-size:0.8rem;width:200px;outline:none;}
+.search-box:focus{border-color:var(--blue);}
+.ml-auto{margin-left:auto;}
+.reset-btn{background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 13px;border-radius:6px;cursor:pointer;font-size:0.76rem;transition:all .15s;}
+.reset-btn:hover{border-color:var(--red);color:var(--red);}
+
+/* ── PRIORITY GROUPS ── */
+.priority-group{margin-bottom:30px;}
+.priority-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:9px;border-bottom:1px solid var(--border);}
+.priority-badge{padding:2px 9px;border-radius:20px;font-size:0.7rem;font-weight:700;letter-spacing:.4px;}
+.p1-badge{background:var(--red-bg);color:var(--red);border:1px solid var(--red);}
+.p2-badge{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange);}
+.p3-badge{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow);}
+.p4-badge{background:var(--green-bg);color:var(--green);border:1px solid var(--green);}
+.priority-title{font-size:0.95rem;font-weight:700;}
+.priority-count{font-size:0.75rem;color:var(--muted);margin-left:auto;}
+
+/* ── CHAPTER GRID ── */
+.chapter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:11px;}
+
+/* ── CHAPTER CARD ── */
+.chapter-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px;transition:transform .1s;border-left:3px solid var(--border);}
+.chapter-card:hover{transform:translateY(-1px);}
+.chapter-card.status-mastered{border-left-color:var(--green);}
+.chapter-card.status-reviewed{border-left-color:var(--blue);}
+.chapter-card.status-in-progress{border-left-color:var(--orange);}
+.chapter-card.status-not-started{border-left-color:var(--border);}
+
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;}
+.card-meta{font-size:0.68rem;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px;}
+.card-title{font-size:0.88rem;font-weight:600;line-height:1.35;}
+.score-pill{flex-shrink:0;padding:2px 8px;border-radius:12px;font-size:0.7rem;font-weight:700;}
+.score-0{background:var(--red-bg);color:var(--red);border:1px solid var(--red);}
+.score-33{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange);}
+.score-50{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow);}
+.score-67{background:var(--green-bg);color:var(--green);border:1px solid var(--green);}
+
+.card-topics{font-size:0.7rem;color:var(--muted);margin-bottom:10px;line-height:1.5;}
+
+/* Status */
+.status-row{display:flex;gap:5px;margin-bottom:9px;}
+.status-btn{flex:1;padding:5px 3px;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:0.66rem;font-weight:600;cursor:pointer;text-align:center;transition:all .15s;line-height:1.3;}
+.status-btn:hover{border-color:var(--blue);color:var(--text);}
+.status-btn.active-not-started{background:#232635;border-color:#6b7280;color:#9ca3af;}
+.status-btn.active-in-progress{background:var(--orange-bg);border-color:var(--orange);color:var(--orange);}
+.status-btn.active-reviewed{background:var(--blue-bg);border-color:var(--blue);color:var(--blue);}
+.status-btn.active-mastered{background:var(--green-bg);border-color:var(--green);color:var(--green);}
+
+/* DIKTA */
+.dikta-row{display:flex;align-items:center;gap:7px;margin-bottom:8px;}
+.dikta-label{font-size:0.7rem;color:var(--muted);white-space:nowrap;}
+.dikta-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 7px;border-radius:5px;font-size:0.76rem;width:52px;text-align:center;outline:none;}
+.dikta-input:focus{border-color:var(--blue);}
+.dikta-bar-wrap{flex:1;background:var(--surface2);border-radius:100px;height:5px;overflow:hidden;}
+.dikta-bar{height:100%;border-radius:100px;transition:width .3s;}
+.dikta-pct{font-size:0.68rem;color:var(--muted);width:30px;text-align:right;}
+
+/* Notes */
+.notes-toggle{background:none;border:none;color:var(--muted);font-size:0.7rem;cursor:pointer;padding:0;margin-bottom:5px;display:flex;align-items:center;gap:4px;}
+.notes-toggle:hover{color:var(--text);}
+.notes-area{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:6px 9px;font-size:0.76rem;resize:vertical;outline:none;min-height:42px;font-family:inherit;line-height:1.4;}
+.notes-area:focus{border-color:var(--blue);}
+.notes-area::placeholder{color:var(--muted);}
+.hidden{display:none!important;}
+.last-studied{font-size:0.66rem;color:var(--muted);margin-top:6px;text-align:right;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:22px;right:22px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 16px;border-radius:8px;font-size:0.8rem;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;z-index:999;max-width:320px;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.error-toast{border-color:var(--red);color:var(--red);}
+
+@media(max-width:600px){
+  .chapter-grid{grid-template-columns:1fr;}
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .controls{gap:6px;}
+}
+</style>
+</head>
+<body>
+
+<!-- SETUP OVERLAY -->
+<div class="overlay" id="setupOverlay">
+  <div class="setup-box">
+    <h2>🔐 Connect to GitHub</h2>
+    <p>Your progress saves directly to your <code>baltejgiri/ccna-study-tracker</code> repo and syncs across every browser and device. You only set this up once.</p>
+
+    <div class="setup-step">
+      <strong>Step 1</strong> — Create the repo at
+      <code>github.com/new</code><br>
+      Name: <code>ccna-study-tracker</code> · Set to <strong>Public</strong> · Check <em>"Add a README file"</em>
+    </div>
+    <div class="setup-step">
+      <strong>Step 2</strong> — Go to <code>github.com/settings/tokens?type=beta</code><br>
+      Click <em>"Generate new token"</em> → name it <code>ccna-tracker</code><br>
+      Repository access: <em>Only select repositories</em> → pick <code>ccna-study-tracker</code><br>
+      Permissions: <em>Contents</em> → <strong>Read and Write</strong> → Generate
+    </div>
+    <div class="setup-step">
+      <strong>Step 3</strong> — Enable GitHub Pages: repo → <em>Settings → Pages</em><br>
+      Source: <em>Deploy from a branch</em> · Branch: <code>main</code> · folder: <code>/ (root)</code>
+    </div>
+
+    <label class="field-label" for="tokenInput">Paste your Personal Access Token here:</label>
+    <input class="token-input" type="password" id="tokenInput" placeholder="github_pat_...">
+    <p class="token-warning">⚠️ Your token is stored only in this browser's localStorage — it is never sent anywhere except the GitHub API. Clear site data to remove it.</p>
+    <button class="save-token-btn" id="saveTokenBtn">Save Token & Connect →</button>
+    <span class="setup-skip" id="skipSetup">Skip for now (offline mode — no sync)</span>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-title">CCNA <span>Study Tracker</span> — Baltej Giri</div>
+  <div class="topbar-right">
+    <div class="sync-status" id="syncStatus">
+      <div class="sync-dot" id="syncDot"></div>
+      <span id="syncText">Not connected</span>
+    </div>
+    <button class="topbar-btn" id="syncNowBtn">↻ Sync</button>
+    <button class="topbar-btn settings-btn" id="openSettingsBtn">⚙ Settings</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="stats" id="statsRow"></div>
+
+  <div class="progress-section">
+    <h2>Overall Progress</h2>
+    <div class="bar-wrap"><div class="bar-fill" id="masterBar" style="width:0%"></div></div>
+    <div class="bar-labels"><span id="progressLabel">0 chapters mastered</span><span id="totalLabel">0%</span></div>
+    <div class="seg-row" id="segRow"></div>
+  </div>
+
+  <div class="controls">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="not-started">Not Started</button>
+    <button class="filter-btn" data-filter="in-progress">In Progress</button>
+    <button class="filter-btn" data-filter="reviewed">Reviewed</button>
+    <button class="filter-btn" data-filter="mastered">Mastered</button>
+    <button class="filter-btn" data-filter="vol1">Vol 1</button>
+    <button class="filter-btn" data-filter="vol2">Vol 2</button>
+    <input class="search-box" id="searchBox" type="text" placeholder="Search chapter…">
+    <div class="ml-auto">
+      <button class="reset-btn" id="resetBtn">Reset All</button>
+    </div>
+  </div>
+
+  <div id="chaptersContainer"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const GITHUB_OWNER = 'baltejgiri';
+const GITHUB_REPO  = 'ccna-study-tracker';
+const PROGRESS_FILE = 'progress.json';
+const STORAGE_KEY   = 'ccna_gh_state_v1';
+const TOKEN_KEY     = 'ccna_gh_token';
+
+// ─── CHAPTER DATA ─────────────────────────────────────────────────────────────
+const CHAPTERS = [
+  {id:'v1c8',  vol:1,ch:8,  p:1,score:0,  correct:0,attempted:2, title:'Implementing Ethernet Virtual LANs',       topics:'VLANs · 802.1Q trunks · DTP · native VLAN · inter-VLAN routing · SVI'},
+  {id:'v1c10', vol:1,ch:10, p:1,score:0,  correct:0,attempted:1, title:'RSTP and EtherChannel Configuration',       topics:'RSTP port roles · PortFast · BPDU Guard · Root Guard · LACP · PAgP'},
+  {id:'v1c11', vol:1,ch:11, p:1,score:0,  correct:0,attempted:1, title:'Perspectives on IPv4 Subnetting',           topics:'Subnet design · host/subnet formulas · private ranges · mask selection'},
+  {id:'v1c12', vol:1,ch:12, p:1,score:0,  correct:0,attempted:1, title:'Analyzing Classful IPv4 Networks',          topics:'Class A/B/C ranges · default masks · network ID · broadcast · host count'},
+  {id:'v1c16', vol:1,ch:16, p:1,score:0,  correct:0,attempted:1, title:'Configuring IPv4 Addressing & Static Routes',topics:'ip address · no shutdown · ip route · default route · floating static'},
+  {id:'v1c26', vol:1,ch:26, p:1,score:0,  correct:0,attempted:1, title:'Fundamentals of Wireless Networks',          topics:'802.11 standards · BSS/ESS · CSMA/CA · 2.4 GHz vs 5 GHz · non-overlapping channels'},
+  {id:'v1c28', vol:1,ch:28, p:1,score:0,  correct:0,attempted:1, title:'Securing Wireless Networks',                 topics:'WEP/WPA/WPA2/WPA3 · PSK vs 802.1X Enterprise · rogue AP · evil twin · AES-CCMP'},
+  {id:'v1c29', vol:1,ch:29, p:1,score:0,  correct:0,attempted:1, title:'Building a Wireless LAN',                   topics:'WLC · lightweight AP · CAPWAP UDP 5246/5247 · WLAN config · AP discovery'},
+  {id:'v2c4',  vol:2,ch:4,  p:1,score:0,  correct:0,attempted:2, title:'Security Architectures',                    topics:'CIA triad · firewall · IDS vs IPS · DMZ · AAA · RADIUS vs TACACS+ · threats'},
+  {id:'v2c9',  vol:2,ch:9,  p:1,score:0,  correct:0,attempted:1, title:'Device Management Protocols',               topics:'SNMPv1/v2c/v3 · syslog levels 0–7 · NTP stratum · CDP · LLDP'},
+  {id:'v2c11', vol:2,ch:11, p:1,score:0,  correct:0,attempted:2, title:'Quality of Service (QoS)',                  topics:'Bandwidth · delay · jitter · loss · DSCP EF/AF/BE · LLQ · shaping vs policing'},
+  {id:'v2c13', vol:2,ch:13, p:1,score:0,  correct:0,attempted:1, title:'LAN Architecture',                          topics:'3-tier vs 2-tier model · access/distribution/core layers · PoE 802.3af/at'},
+  {id:'v2c14', vol:2,ch:14, p:1,score:0,  correct:0,attempted:2, title:'WAN Architecture',                          topics:'MPLS L3VPN · Metro Ethernet · IPsec VPN · site-to-site · remote access · DMVPN'},
+  {id:'v2c16', vol:2,ch:16, p:1,score:0,  correct:0,attempted:2, title:'Introduction to Controller-Based Networking',topics:'Data/control/management planes · SDN · northbound/southbound APIs · overlay/underlay'},
+  {id:'v2c17', vol:2,ch:17, p:1,score:0,  correct:0,attempted:1, title:'Cisco Software Defined Access (SDA)',        topics:'DNA Center · LISP control plane · VXLAN data plane · edge/border/control nodes · SGT'},
+  {id:'v2c19', vol:2,ch:19, p:1,score:0,  correct:0,attempted:2, title:'Understanding Ansible, Puppet & Chef',       topics:'Agentless vs agent · push vs pull · YAML playbooks · manifests · recipes'},
+  {id:'v1c24', vol:1,ch:24, p:2,score:33, correct:1,attempted:3, title:'Implementing IPv6 Addressing on Routers',   topics:'GUA · link-local · EUI-64 process · SLAAC · ipv6 unicast-routing · abbreviation rules'},
+  {id:'v2c12', vol:2,ch:12, p:2,score:33, correct:1,attempted:3, title:'Miscellaneous IP Services',                 topics:'DHCP DORA · ip helper-address · FTP TCP 20/21 · TFTP UDP 69 · IOS file management'},
+  {id:'v2c5',  vol:2,ch:5,  p:3,score:50, correct:1,attempted:2, title:'Securing Network Devices',                  topics:'enable secret · SSH 4-step config · transport input ssh · exec-timeout · banners'},
+  {id:'v2c10', vol:2,ch:10, p:3,score:50, correct:1,attempted:2, title:'Network Address Translation (NAT)',          topics:'Static/dynamic NAT · PAT overload · inside local/global · ip nat inside · show ip nat'},
+  {id:'v2c18', vol:2,ch:18, p:3,score:50, correct:1,attempted:2, title:'Understanding REST and JSON',               topics:'HTTP verbs GET/POST/PUT/DELETE · status codes 200/201/400/401/403/404 · JSON structure'},
+  {id:'v1c23', vol:1,ch:23, p:4,score:67, correct:2,attempted:3, title:'IPv6 Addressing and Subnetting',            topics:'IPv6 prefix notation · compression rules · finding subnet from address/prefix'},
+  {id:'v2c6',  vol:2,ch:6,  p:4,score:67, correct:2,attempted:3, title:'Implementing Switch Port Security',         topics:'port-security max · violation modes shutdown/restrict/protect · sticky MAC'},
+  {id:'v2c15', vol:2,ch:15, p:4,score:67, correct:2,attempted:3, title:'Cloud Architecture',                        topics:'IaaS/PaaS/SaaS · public/private/hybrid cloud · WAN connectivity options to cloud'},
+];
+
+const P_META = {
+  1:{label:'🔴 Priority 1 — Critical (0%)',  badge:'p1-badge', color:'#ef4444'},
+  2:{label:'🟠 Priority 2 — Weak (33%)',      badge:'p2-badge', color:'#f97316'},
+  3:{label:'🟡 Priority 3 — Below Avg (50%)', badge:'p3-badge', color:'#eab308'},
+  4:{label:'🟢 Priority 4 — Improve (67%)',   badge:'p4-badge', color:'#22c55e'},
+};
+
+const STATUS = {
+  'not-started': {label:'Not Started', short:'Not Started'},
+  'in-progress': {label:'⚡ In Progress', short:'In Progress'},
+  'reviewed':    {label:'✅ Reviewed',    short:'Reviewed'},
+  'mastered':    {label:'🏆 Mastered',    short:'Mastered'},
+};
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let state = {};   // { [id]: {status, dikta, notes, lastStudied} }
+let ghToken = '';
+let fileSha = '';  // GitHub file SHA (needed for updates)
+let currentFilter = 'all';
+let currentSearch = '';
+let saveTimer = null;
+let isSyncing = false;
+
+function defaultEntry() { return {status:'not-started', dikta:'', notes:'', lastStudied:null}; }
+
+function loadLocal() {
+  ghToken = localStorage.getItem(TOKEN_KEY) || '';
+  try { state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch(e) { state = {}; }
+  CHAPTERS.forEach(c => { if (!state[c.id]) state[c.id] = defaultEntry(); });
+}
+
+function saveLocal() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+// ─── GITHUB API ───────────────────────────────────────────────────────────────
+async function ghFetch(method, path, body) {
+  const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${ghToken}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      ...(body ? {'Content-Type':'application/json'} : {})
+    },
+    ...(body ? {body: JSON.stringify(body)} : {})
+  });
+  if (!res.ok) throw new Error(`GitHub ${method} ${path} → ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+async function loadFromGitHub() {
+  if (!ghToken) return false;
+  setSyncStatus('syncing', 'Syncing…');
+  try {
+    const data = await ghFetch('GET', PROGRESS_FILE);
+    fileSha = data.sha;
+    const parsed = JSON.parse(atob(data.content.replace(/\n/g,'')));
+    // Merge — GitHub is authoritative for existing entries
+    CHAPTERS.forEach(c => {
+      state[c.id] = parsed[c.id] || defaultEntry();
+    });
+    saveLocal();
+    setSyncStatus('synced', `Synced ${fmtTime(Date.now())}`);
+    return true;
+  } catch(e) {
+    if (e.message.includes('404')) {
+      // File doesn't exist yet — push initial state
+      await pushToGitHub('Initial progress file created by CCNA Study Tracker');
+      return true;
+    }
+    setSyncStatus('error', 'Sync error');
+    showToast('GitHub sync failed: ' + e.message, true);
+    return false;
+  }
+}
+
+async function pushToGitHub(msg) {
+  if (!ghToken) return;
+  if (isSyncing) return;
+  isSyncing = true;
+  setSyncStatus('syncing', 'Saving…');
+  try {
+    const content = btoa(JSON.stringify(state, null, 2));
+    const body = { message: msg || 'Update progress', content };
+    if (fileSha) body.sha = fileSha;
+    const res = await ghFetch('PUT', PROGRESS_FILE, body);
+    fileSha = res.content.sha;
+    saveLocal();
+    setSyncStatus('synced', `Saved ${fmtTime(Date.now())}`);
+  } catch(e) {
+    setSyncStatus('error', 'Save failed');
+    showToast('Could not save to GitHub: ' + e.message, true);
+  } finally { isSyncing = false; }
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveLocal();
+  saveTimer = setTimeout(() => pushToGitHub(), 1500);
+}
+
+// ─── UI HELPERS ───────────────────────────────────────────────────────────────
+function setSyncStatus(type, text) {
+  const dot = document.getElementById('syncDot');
+  const txt = document.getElementById('syncText');
+  dot.className = 'sync-dot ' + type;
+  txt.textContent = text;
+}
+
+function fmtTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+
+let toastTimer;
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error-toast' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = 'toast', 2800);
+}
+
+function scoreClass(s) {
+  if (s===0)  return 'score-0';
+  if (s<=33)  return 'score-33';
+  if (s<=50)  return 'score-50';
+  return 'score-67';
+}
+
+function diktaColor(v) {
+  const n = parseInt(v);
+  if (isNaN(n)) return '#374151';
+  if (n>=80) return '#22c55e';
+  if (n>=60) return '#eab308';
+  return '#ef4444';
+}
+
+// ─── RENDER CARD ──────────────────────────────────────────────────────────────
+function renderCard(ch) {
+  const s = state[ch.id];
+  const card = document.createElement('div');
+  card.className = `chapter-card status-${s.status}`;
+  card.dataset.id = ch.id;
+
+  const dv = parseInt(s.dikta)||0;
+  const lastTxt = s.lastStudied
+    ? `Last updated ${new Date(s.lastStudied).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`
+    : 'Not yet started';
+
+  card.innerHTML = `
+    <div class="card-header">
+      <div>
+        <div class="card-meta">Vol ${ch.vol} &middot; Ch ${ch.ch}</div>
+        <div class="card-title">${ch.title}</div>
+      </div>
+      <span class="score-pill ${scoreClass(ch.score)}">${ch.score}%</span>
+    </div>
+    <div class="card-topics">${ch.topics}</div>
+
+    <div class="status-row">
+      ${Object.entries(STATUS).map(([k,v])=>`
+        <button class="status-btn ${s.status===k?'active-'+k:''}" data-status="${k}">${v.short}</button>
+      `).join('')}
+    </div>
+
+    <div class="dikta-row">
+      <span class="dikta-label">DIKTA:</span>
+      <input class="dikta-input" type="number" min="0" max="100" placeholder="%" value="${s.dikta}" data-dikta>
+      <div class="dikta-bar-wrap">
+        <div class="dikta-bar" style="width:${Math.min(dv,100)}%;background:${diktaColor(s.dikta)};"></div>
+      </div>
+      <span class="dikta-pct">${s.dikta?s.dikta+'%':'—'}</span>
+    </div>
+
+    <button class="notes-toggle" data-ntoggle>📝 Notes${s.notes?' (saved)':''}</button>
+    <textarea class="notes-area ${s.notes?'':'hidden'}" placeholder="Key commands, concepts to remember…" data-notes>${s.notes||''}</textarea>
+
+    <div class="last-studied">${lastTxt}</div>
+  `;
+
+  // Status buttons
+  card.querySelectorAll('[data-status]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state[ch.id].status = btn.dataset.status;
+      state[ch.id].lastStudied = Date.now();
+      scheduleSave();
+      renderAll();
+      showToast(`"${ch.title.slice(0,30)}…" → ${STATUS[btn.dataset.status].short}`);
+    });
+  });
+
+  // DIKTA input
+  const di = card.querySelector('[data-dikta]');
+  di.addEventListener('input', () => {
+    let v = parseInt(di.value);
+    if (!isNaN(v)) { if(v<0)v=0; if(v>100)v=100; di.value=v; }
+    state[ch.id].dikta = di.value;
+    state[ch.id].lastStudied = Date.now();
+    const bar = card.querySelector('.dikta-bar');
+    const pct = card.querySelector('.dikta-pct');
+    bar.style.width = Math.min(parseInt(di.value)||0,100)+'%';
+    bar.style.background = diktaColor(di.value);
+    pct.textContent = di.value ? di.value+'%' : '—';
+    scheduleSave();
+    updateStats();
+  });
+
+  // Notes
+  const nt = card.querySelector('[data-ntoggle]');
+  const na = card.querySelector('[data-notes]');
+  nt.addEventListener('click', () => na.classList.toggle('hidden'));
+  na.addEventListener('input', () => {
+    state[ch.id].notes = na.value;
+    state[ch.id].lastStudied = Date.now();
+    nt.textContent = '📝 Notes' + (na.value ? ' (saved)' : '');
+    scheduleSave();
+  });
+
+  return card;
+}
+
+// ─── RENDER ALL ───────────────────────────────────────────────────────────────
+function matchesFilter(ch) {
+  const s = state[ch.id];
+  if (currentFilter==='vol1' && ch.vol!==1) return false;
+  if (currentFilter==='vol2' && ch.vol!==2) return false;
+  if (['not-started','in-progress','reviewed','mastered'].includes(currentFilter) && s.status!==currentFilter) return false;
+  if (currentSearch) {
+    const q = currentSearch.toLowerCase();
+    if (!ch.title.toLowerCase().includes(q) && !ch.topics.toLowerCase().includes(q)) return false;
+  }
+  return true;
+}
+
+function renderAll() {
+  const c = document.getElementById('chaptersContainer');
+  c.innerHTML = '';
+  [1,2,3,4].forEach(p => {
+    const list = CHAPTERS.filter(ch => ch.p===p && matchesFilter(ch));
+    if (!list.length) return;
+    const m = P_META[p];
+    const grp = document.createElement('div');
+    grp.className = 'priority-group';
+    grp.innerHTML = `
+      <div class="priority-header">
+        <span class="priority-badge ${m.badge}">${['CRITICAL','WEAK','BELOW AVG','IMPROVE'][p-1]}</span>
+        <span class="priority-title">${m.label}</span>
+        <span class="priority-count">${list.length} chapter${list.length!==1?'s':''}</span>
+      </div>
+      <div class="chapter-grid" id="g${p}"></div>
+    `;
+    c.appendChild(grp);
+    const grid = grp.querySelector(`#g${p}`);
+    list.forEach(ch => grid.appendChild(renderCard(ch)));
+  });
+  if (!c.innerHTML) c.innerHTML = `<div style="text-align:center;padding:60px;color:var(--muted);">No chapters match.</div>`;
+  updateStats();
+}
+
+function updateStats() {
+  const total = CHAPTERS.length;
+  const by = {'not-started':0,'in-progress':0,'reviewed':0,'mastered':0};
+  let dikta80 = 0;
+  CHAPTERS.forEach(ch => {
+    by[state[ch.id].status]++;
+    if (parseInt(state[ch.id].dikta)>=80) dikta80++;
+  });
+  const {mastered, reviewed} = by;
+  const inProg = by['in-progress'];
+  const notStarted = by['not-started'];
+
+  document.getElementById('masterBar').style.width = (mastered/total*100)+'%';
+  document.getElementById('progressLabel').textContent = `${mastered} of ${total} chapters mastered`;
+  document.getElementById('totalLabel').textContent = Math.round(mastered/total*100)+'%';
+
+  document.getElementById('segRow').innerHTML = `
+    <div class="seg"><div class="seg-dot" style="background:#ef4444"></div>${notStarted} Not Started</div>
+    <div class="seg"><div class="seg-dot" style="background:#f97316"></div>${inProg} In Progress</div>
+    <div class="seg"><div class="seg-dot" style="background:#3b82f6"></div>${reviewed} Reviewed</div>
+    <div class="seg"><div class="seg-dot" style="background:#22c55e"></div>${mastered} Mastered</div>
+    <div class="seg"><div class="seg-dot" style="background:#a855f7"></div>${dikta80} DIKTA ≥80%</div>
+  `;
+
+  const critDone = CHAPTERS.filter(c=>c.p===1&&state[c.id].status==='mastered').length;
+  const critTotal = CHAPTERS.filter(c=>c.p===1).length;
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Overall</div>
+      <div class="stat-value" style="color:var(--blue)">${Math.round(mastered/total*100)}<span style="font-size:.9rem">%</span></div>
+      <div class="stat-sub">${mastered}/${total} mastered</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">🔴 Critical (P1)</div>
+      <div class="stat-value" style="color:var(--red)">${critDone}<span style="font-size:.9rem">/${critTotal}</span></div>
+      <div class="stat-sub">0% chapters done</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">In Progress</div>
+      <div class="stat-value" style="color:var(--orange)">${inProg}</div>
+      <div class="stat-sub">active now</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">DIKTA ≥ 80%</div>
+      <div class="stat-value" style="color:var(--purple)">${dikta80}</div>
+      <div class="stat-sub">gate passed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Remaining</div>
+      <div class="stat-value" style="color:var(--muted)">${total-mastered}</div>
+      <div class="stat-sub">to master</div>
+    </div>
+  `;
+}
+
+// ─── SETUP / SETTINGS ─────────────────────────────────────────────────────────
+function showSetup() { document.getElementById('setupOverlay').classList.remove('hidden'); }
+function hideSetup() { document.getElementById('setupOverlay').classList.add('hidden'); }
+
+document.getElementById('saveTokenBtn').addEventListener('click', async () => {
+  const t = document.getElementById('tokenInput').value.trim();
+  if (!t) { showToast('Please paste your GitHub token.', true); return; }
+  ghToken = t;
+  localStorage.setItem(TOKEN_KEY, ghToken);
+  hideSetup();
+  await loadFromGitHub();
+  renderAll();
+});
+
+document.getElementById('skipSetup').addEventListener('click', () => {
+  hideSetup();
+  setSyncStatus('', 'Offline mode');
+});
+
+document.getElementById('openSettingsBtn').addEventListener('click', () => {
+  document.getElementById('tokenInput').value = ghToken || '';
+  showSetup();
+});
+
+document.getElementById('syncNowBtn').addEventListener('click', async () => {
+  if (!ghToken) { showSetup(); return; }
+  await loadFromGitHub();
+  renderAll();
+});
+
+// ─── FILTER / SEARCH ──────────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    renderAll();
+  });
+});
+
+document.getElementById('searchBox').addEventListener('input', e => {
+  currentSearch = e.target.value.trim();
+  renderAll();
+});
+
+document.getElementById('resetBtn').addEventListener('click', async () => {
+  if (!confirm('Reset ALL progress? This will also overwrite GitHub.')) return;
+  CHAPTERS.forEach(c => { state[c.id] = defaultEntry(); });
+  fileSha = '';
+  await pushToGitHub('Reset all progress');
+  renderAll();
+  showToast('All progress reset and synced.');
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+loadLocal();
+
+if (ghToken) {
+  setSyncStatus('syncing','Connecting…');
+  loadFromGitHub().then(() => renderAll());
+} else {
+  showSetup();
+  renderAll();
+}
+</script>
+</body>
+</html>
