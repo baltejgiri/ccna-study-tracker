@@ -16,6 +16,25 @@
   --purple:#a855f7;
   --radius:10px;
 }
+/* ── LIGHT THEME ── */
+html.light {
+  --bg:#f1f5f9; --surface:#ffffff; --surface2:#f8fafc; --border:#e2e8f0;
+  --text:#0f172a; --muted:#64748b;
+  --red:#dc2626; --red-bg:#fef2f2;
+  --orange:#ea6c10; --orange-bg:#fff7ed;
+  --yellow:#ca8a04; --yellow-bg:#fefce8;
+  --green:#16a34a; --green-bg:#f0fdf4;
+  --blue:#2563eb; --blue-bg:#eff6ff;
+  --purple:#9333ea;
+}
+/* ── THEME TOGGLE BUTTON ── */
+.theme-toggle {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); width: 34px; height: 34px; border-radius: 8px;
+  cursor: pointer; font-size: 1rem; display: flex; align-items: center;
+  justify-content: center; transition: all .15s; flex-shrink: 0;
+}
+.theme-toggle:hover { border-color: var(--blue); color: var(--blue); }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
 
@@ -197,6 +216,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     </div>
     <button class="topbar-btn" id="syncNowBtn">↻ Sync</button>
     <button class="topbar-btn settings-btn" id="openSettingsBtn">⚙ Settings</button>
+    <button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode">🌙</button>
   </div>
 </div>
 
@@ -633,6 +653,33 @@ document.getElementById('resetBtn').addEventListener('click', async () => {
   renderAll();
   showToast('All progress reset and synced.');
 });
+
+// ─── THEME ────────────────────────────────────────────────────────────────────
+const THEME_KEY = 'ccna_theme';
+const themeToggle = document.getElementById('themeToggle');
+
+function applyTheme(theme) {
+  if (theme === 'light') {
+    document.documentElement.classList.add('light');
+    themeToggle.textContent = '☀️';
+    themeToggle.title = 'Switch to dark mode';
+  } else {
+    document.documentElement.classList.remove('light');
+    themeToggle.textContent = '🌙';
+    themeToggle.title = 'Switch to light mode';
+  }
+  localStorage.setItem(THEME_KEY, theme);
+}
+
+themeToggle.addEventListener('click', () => {
+  const isLight = document.documentElement.classList.contains('light');
+  applyTheme(isLight ? 'dark' : 'light');
+});
+
+// Apply saved theme (or system preference) on load
+const savedTheme = localStorage.getItem(THEME_KEY)
+  || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+applyTheme(savedTheme);
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 loadLocal();
